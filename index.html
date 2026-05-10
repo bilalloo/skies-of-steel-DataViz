@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skies of Steel — WWII Aerial Operations & Weather</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IBM+Plex+Mono:wght@300;400;600&family=Oswald:wght@300;400;600;700&display=swap');
+
+  :root {
+    --cream: #f0e8d8;
+    --ink: #1a1208;
+    --rust: #c0392b;
+    --steel: #4a5568;
+    --gold: #b8860b;
+    --smoke: #8b8680;
+    --paper: #e8ddc8;
+    --dark-steel: #2d3748;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--ink);
+    color: var(--cream);
+    font-family: 'IBM Plex Mono', monospace;
+    overflow-x: hidden;
+  }
+
+  /* ── HERO ─────────────────────────────────── */
+  #hero {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 0 8vw;
+    position: relative;
+    background: #0a0805;
+    overflow: hidden;
+  }
+
+  #hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(255,255,255,0.015) 2px, rgba(255,255,255,0.015) 4px
+    );
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 300;
+    font-size: clamp(0.65rem, 1.2vw, 0.85rem);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--rust);
+    margin-bottom: 2rem;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeUp 0.8s ease 0.3s forwards;
+  }
+
+  .hero-title {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: clamp(3.5rem, 9vw, 8rem);
+    line-height: 0.9;
+    text-transform: uppercase;
+    color: var(--cream);
+    max-width: 12ch;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeUp 0.9s ease 0.5s forwards;
+  }
+
+  .hero-title span { color: var(--rust); }
+
+  .hero-sub {
+    font-family: 'IM Fell English', serif;
+    font-style: italic;
+    font-size: clamp(1rem, 2vw, 1.4rem);
+    color: var(--smoke);
+    margin-top: 2rem;
+    max-width: 50ch;
+    line-height: 1.7;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeUp 0.9s ease 0.8s forwards;
+  }
+
+  .hero-meta {
+    margin-top: 3rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    color: var(--steel);
+    opacity: 0;
+    animation: fadeUp 0.9s ease 1.1s forwards;
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 3rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--smoke);
+    opacity: 0;
+    animation: fadeUp 1s ease 1.5s forwards;
+  }
+
+  .scroll-arrow {
+    width: 1px;
+    height: 3rem;
+    background: linear-gradient(to bottom, transparent, var(--rust));
+    animation: pulse-down 1.5s ease infinite;
+  }
+
+  /* Floating plane silhouettes */
+  .plane-bg {
+    position: absolute;
+    right: 5vw;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.06;
+    font-size: 18vw;
+    pointer-events: none;
+    filter: blur(1px);
+  }
+
+  /* ── SECTIONS ─────────────────────────────── */
+  section {
+    min-height: 100vh;
+    padding: 8rem 8vw;
+    position: relative;
+  }
+
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--rust);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--rust);
+    opacity: 0.3;
+    max-width: 6rem;
+  }
+
+  .section-title {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 4.5vw, 3.5rem);
+    line-height: 1.1;
+    text-transform: uppercase;
+    color: var(--cream);
+    margin-bottom: 2rem;
+  }
+
+  .section-body {
+    font-family: 'IM Fell English', serif;
+    font-size: clamp(1rem, 1.4vw, 1.15rem);
+    line-height: 1.9;
+    color: var(--paper);
+    max-width: 65ch;
+    margin-bottom: 3rem;
+  }
+
+  .highlight { color: var(--rust); font-style: italic; }
+  .highlight-gold { color: var(--gold); }
+
+  /* ── INTRO / OVERVIEW ─────────────────────── */
+  #intro {
+    background: #110e08;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .question-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2px;
+    margin-top: 3rem;
+  }
+
+  .q-card {
+    background: #1a1510;
+    border-left: 3px solid var(--rust);
+    padding: 2rem;
+    position: relative;
+    transition: background 0.3s;
+  }
+
+  .q-card:hover { background: #221c12; }
+
+  .q-num {
+    font-family: 'Oswald', sans-serif;
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: rgba(192,57,43,0.15);
+    position: absolute;
+    top: 1rem;
+    right: 1.5rem;
+    line-height: 1;
+  }
+
+  .q-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--rust);
+    margin-bottom: 0.75rem;
+  }
+
+  .q-text {
+    font-family: 'IM Fell English', serif;
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--paper);
+  }
+
+  /* ── DATA CARDS ───────────────────────────── */
+  .stat-row {
+    display: flex;
+    gap: 1px;
+    margin-bottom: 1px;
+    flex-wrap: wrap;
+  }
+
+  .stat-card {
+    background: #1a1510;
+    padding: 2rem 2.5rem;
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .stat-num {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 700;
+    color: var(--rust);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--smoke);
+  }
+
+  /* ── CHART CONTAINERS ─────────────────────── */
+  .chart-wrap {
+    background: #0f0c08;
+    border: 1px solid #2a2218;
+    padding: 2rem;
+    position: relative;
+    margin: 2rem 0;
+  }
+
+  .chart-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--smoke);
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #2a2218;
+  }
+
+  svg { overflow: visible; }
+
+  .axis-label {
+    fill: var(--smoke);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+  }
+
+  .grid-line { stroke: #2a2218; stroke-width: 1; }
+
+  /* ── MAP SECTION ──────────────────────────── */
+  #map-section {
+    background: #0d0a06;
+  }
+
+  .map-layout {
+    display: grid;
+    grid-template-columns: 1fr 1.8fr;
+    gap: 4rem;
+    align-items: start;
+    margin-top: 3rem;
+  }
+
+  @media (max-width: 900px) {
+    .map-layout { grid-template-columns: 1fr; }
+  }
+
+  #world-map {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #0a0806;
+    border: 1px solid #2a2218;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    color: var(--smoke);
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── INVESTIGATION 1 ──────────────────────── */
+  #inv1 {
+    background: #110e08;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 5rem;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .two-col { grid-template-columns: 1fr; gap: 3rem; }
+  }
+
+  .finding-box {
+    background: #0d0a06;
+    border: 1px solid #2a2218;
+    border-left: 3px solid var(--rust);
+    padding: 1.5rem 2rem;
+    margin: 1.5rem 0;
+  }
+
+  .finding-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--rust);
+    margin-bottom: 0.5rem;
+  }
+
+  .finding-text {
+    font-family: 'IM Fell English', serif;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--paper);
+  }
+
+  /* ── INVESTIGATION 2 ──────────────────────── */
+  #inv2 { background: #0d0a06; }
+
+  /* ── INVESTIGATION 3 ──────────────────────── */
+  #inv3 { background: #110e08; }
+
+  /* ── CONCLUSION ───────────────────────────── */
+  #conclusion {
+    background: #080604;
+    min-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .conclusion-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    margin-top: 3rem;
+  }
+
+  @media (max-width: 700px) {
+    .conclusion-grid { grid-template-columns: 1fr; }
+  }
+
+  .concl-card {
+    background: #110e08;
+    padding: 2.5rem;
+    border-top: 3px solid var(--rust);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .concl-card::after {
+    content: attr(data-num);
+    position: absolute;
+    bottom: -0.5rem;
+    right: 1rem;
+    font-family: 'Oswald', sans-serif;
+    font-size: 5rem;
+    font-weight: 700;
+    color: rgba(192,57,43,0.07);
+    line-height: 1;
+  }
+
+  .concl-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--cream);
+    margin-bottom: 1rem;
+  }
+
+  .concl-text {
+    font-family: 'IM Fell English', serif;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    color: var(--smoke);
+  }
+
+  /* ── FOOTER ───────────────────────────────── */
+  footer {
+    background: #050402;
+    padding: 4rem 8vw;
+    border-top: 1px solid #2a2218;
+  }
+
+  .footer-inner {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 2rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: var(--steel);
+  }
+
+  footer a { color: var(--rust); text-decoration: none; }
+
+  /* ── ANIMATIONS ────────────────────────────── */
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse-down {
+    0%, 100% { opacity: 0.3; transform: scaleY(1); }
+    50% { opacity: 1; transform: scaleY(1.1); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Scrollytelling sticky */
+  .sticky-narrative {
+    position: sticky;
+    top: 10vh;
+    height: fit-content;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    position: fixed;
+    background: rgba(26,21,16,0.95);
+    border: 1px solid var(--rust);
+    padding: 0.6rem 1rem;
+    font-size: 0.7rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 9999;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--cream);
+    max-width: 220px;
+    line-height: 1.5;
+  }
+
+  /* Bar chart labels */
+  .bar-label {
+    fill: var(--smoke);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+  }
+
+  .bar-value {
+    fill: var(--cream);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+  }
+
+  /* Theater badge */
+  .theater-badge {
+    display: inline-block;
+    background: #1a1510;
+    border: 1px solid #3a3020;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin: 0.25rem 0.25rem 0.25rem 0;
+    color: var(--smoke);
+  }
+
+  .theater-badge.active { border-color: var(--rust); color: var(--rust); }
+
+  /* Nav dots */
+  #nav-dots {
+    position: fixed;
+    right: 2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    z-index: 100;
+  }
+
+  .nav-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--steel);
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .nav-dot.active {
+    background: var(--rust);
+    transform: scale(1.5);
+  }
+
+  /* Progress bar */
+  #progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: var(--rust);
+    width: 0%;
+    z-index: 999;
+    transition: width 0.1s;
+  }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<div id="nav-dots">
+  <div class="nav-dot active" data-target="hero" title="Cover"></div>
+  <div class="nav-dot" data-target="intro" title="Overview"></div>
+  <div class="nav-dot" data-target="map-section" title="Global Map"></div>
+  <div class="nav-dot" data-target="inv1" title="Weather & Missions"></div>
+  <div class="nav-dot" data-target="inv2" title="Shifting Fronts"></div>
+  <div class="nav-dot" data-target="inv3" title="Forecasting"></div>
+  <div class="nav-dot" data-target="conclusion" title="Conclusions"></div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<!-- ─── HERO ──────────────────────────────────── -->
+<section id="hero">
+  <div class="plane-bg">✈</div>
+  <div class="hero-eyebrow">Data-driven analysis · World War II · 1939–1945</div>
+  <h1 class="hero-title">Skies<br>of <span>Steel</span></h1>
+  <p class="hero-sub">
+    A scrollytelling investigation into how weather shaped aerial warfare, 
+    how frontlines shifted, and how data can predict the skies of history.
+  </p>
+  <div class="hero-meta">
+    Muhammad Bilal — 2023395 &nbsp;·&nbsp; Muhammad Bilawal — 2023400
+  </div>
+  <div class="scroll-hint">
+    <span>Scroll to explore</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- ─── INTRO ─────────────────────────────────── -->
+<section id="intro">
+  <div class="section-label">The Investigation</div>
+  <h2 class="section-title reveal">Three Questions.<br>One War.</h2>
+  <p class="section-body reveal">
+    We merged two massive historical datasets — <span class="highlight">thousands of Allied bombing missions</span> 
+    and <span class="highlight">years of weather station readings</span> — to ask questions that 
+    historians have debated for decades. The answers live in the data.
+  </p>
+
+  <div class="stat-row reveal">
+    <div class="stat-card">
+      <div class="stat-num" id="counter-missions">0</div>
+      <div class="stat-label">Recorded Missions</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="counter-countries">0</div>
+      <div class="stat-label">Target Nations</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="counter-stations">0</div>
+      <div class="stat-label">Weather Readings</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="counter-years">0</div>
+      <div class="stat-label">Years Covered</div>
+    </div>
+  </div>
+
+  <div class="question-grid reveal">
+    <div class="q-card">
+      <div class="q-num">01</div>
+      <div class="q-label">Weather Constraint</div>
+      <div class="q-text">Did extreme weather dictate mission frequency, or did strategic necessity override the risks of flying in adverse conditions?</div>
+    </div>
+    <div class="q-card">
+      <div class="q-num">02</div>
+      <div class="q-label">Shifting Fronts</div>
+      <div class="q-text">How did the geographical center of gravity for bombing operations shift over the war's timeline?</div>
+    </div>
+    <div class="q-card">
+      <div class="q-num">03</div>
+      <div class="q-label">Predicting the Skies</div>
+      <div class="q-text">Can we use historical weather data and time-series modeling to accurately forecast the environmental conditions of historical campaigns?</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── MAP SECTION ───────────────────────────── -->
+<section id="map-section">
+  <div class="section-label">Setting the Stage</div>
+  <h2 class="section-title reveal">The Operational<br>Theater</h2>
+
+  <div class="map-layout">
+    <div class="sticky-narrative reveal">
+      <p class="section-body" style="font-size:0.95rem;">
+        The war was fought across four distinct theaters — each with its own climate, geography, and strategic logic. 
+        <span class="highlight">200 sample flight paths</span> are drawn here, tracing bomber routes from Allied airfields to their targets.
+      </p>
+
+      <div style="margin-top:2rem;">
+        <div class="legend-item"><div class="legend-dot" style="background:#4a9eff;"></div>USA Takeoff Base</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div>Great Britain Takeoff Base</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f39c12;"></div>South Africa Takeoff Base</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#9b59b6;"></div>New Zealand Takeoff Base</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e74c3c; opacity:0.5;"></div>Target Location</div>
+      </div>
+
+      <div style="margin-top:2rem;">
+        <div class="finding-label">Theaters of Operation</div>
+        <div class="theater-badge active">MTO — Mediterranean</div>
+        <div class="theater-badge">CBI — China/Burma/India</div>
+        <div class="theater-badge">PTO — Pacific</div>
+        <div class="theater-badge">ETO — Europe</div>
+        <div class="theater-badge">East Africa</div>
+      </div>
+
+      <div class="finding-box" style="margin-top:2rem;">
+        <div class="finding-label">Key Finding</div>
+        <div class="finding-text">
+          The Mediterranean Theater (MTO) accounted for the largest share of missions in this dataset — nearly <span class="highlight">66%</span> of all recorded sorties, reflecting the early Allied campaign to push through North Africa and Italy.
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="chart-wrap">
+        <div class="chart-title">Bombing Flight Paths — Takeoff Bases → Targets (200 sample missions)</div>
+        <svg id="world-map"></svg>
+      </div>
+      <div class="chart-wrap reveal" style="margin-top:1px;">
+        <div class="chart-title">Top 10 Target Countries by Mission Count</div>
+        <svg id="bar-targets" style="width:100%;height:320px;"></svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── INVESTIGATION 1 ────────────────────────── -->
+<section id="inv1">
+  <div class="section-label">Investigation 01</div>
+  <h2 class="section-title reveal">The Weather<br>Constraint</h2>
+
+  <div class="two-col">
+    <div class="sticky-narrative">
+      <p class="section-body reveal" style="font-size:0.95rem;">
+        The green line tracks daily mean temperature at the <span class="highlight">Bindukuri weather station</span> in Burma — the closest recording station to the USAAF's Katha bombing campaign. Each <span class="highlight" style="color:#4a9eff;">blue dot</span> marks a day when a US mission struck Katha.
+      </p>
+
+      <div class="finding-box reveal">
+        <div class="finding-label">Finding</div>
+        <div class="finding-text">
+          Blue dots cluster around the <em>peaks</em> of the temperature wave — summer months with the highest temperatures. Military planners clearly preferred warmer conditions, likely for better visibility and aircraft performance.
+        </div>
+      </div>
+
+      <div class="finding-box reveal">
+        <div class="finding-label">But Strategy Overrides Weather</div>
+        <div class="finding-text">
+          Missions also appear during winter months — even when temperatures dropped below 15°C. <span class="highlight">Strategic necessity could not be grounded by the thermometer.</span> Commanders authorized runs regardless of adverse conditions.
+        </div>
+      </div>
+
+      <div class="finding-box reveal">
+        <div class="finding-label">ARIMA Seasonal Analysis</div>
+        <div class="finding-text">
+          The regularity of this seasonal pattern is exactly what makes it statistically predictable. Using an ARIMA(1,0,1) time-series model, we can forecast future temperatures — and therefore optimal mission windows.
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="chart-wrap reveal">
+        <div class="chart-title">Bindukuri Station — Mean Temperature & USAAF Katha Mission Dates (1943–1945)</div>
+        <svg id="weather-chart" style="width:100%;height:380px;"></svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── INVESTIGATION 2 ────────────────────────── -->
+<section id="inv2">
+  <div class="section-label">Investigation 02</div>
+  <h2 class="section-title reveal">The Shifting<br>Tides of War</h2>
+
+  <p class="section-body reveal">
+    The war's aerial focus was not static. As strategic objectives changed, so did the volume of missions against each country.
+    The chart below tracks the three most-bombed nations month by month — revealing precise historical turning points visible in the data.
+  </p>
+
+  <div class="chart-wrap reveal">
+    <div class="chart-title">Monthly Mission Volume — Top 3 Target Countries (Italy · Burma · Libya)</div>
+    <svg id="timeline-chart" style="width:100%;height:400px;"></svg>
+  </div>
+
+  <div class="question-grid reveal" style="margin-top:3rem;">
+    <div class="q-card">
+      <div class="q-num" style="color:rgba(192,57,43,0.2);">IT</div>
+      <div class="q-label">Italy — 1943 to 1944</div>
+      <div class="q-text">The largest sustained campaign. The Mediterranean push began in 1942 and intensified massively through 1943–1944 as Allies drove up the peninsula.</div>
+    </div>
+    <div class="q-card">
+      <div class="q-num" style="color:rgba(74,158,255,0.2);">LY</div>
+      <div class="q-label">Libya — 1940 to 1943</div>
+      <div class="q-text">Libya dominated the early war years, reflecting the Desert Campaign. Operations ended sharply in early 1943 as the Axis was expelled from North Africa.</div>
+    </div>
+    <div class="q-card">
+      <div class="q-num" style="color:rgba(241,196,15,0.2);">BU</div>
+      <div class="q-label">Burma — 1942 to 1943</div>
+      <div class="q-text">Burma saw intense activity in early 1942 as Japanese forces advanced, with missions spiking in February-May 1942. The CBI theater had its own distinct seasonal rhythm.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── INVESTIGATION 3 ────────────────────────── -->
+<section id="inv3">
+  <div class="section-label">Investigation 03</div>
+  <h2 class="section-title reveal">Predicting<br>the Skies</h2>
+
+  <div class="two-col">
+    <div class="sticky-narrative">
+      <p class="section-body reveal" style="font-size:0.95rem;">
+        Using the ARIMA model (Auto-Regressive Integrated Moving Average), we trained a mathematical forecasting system on the Bindukuri temperature record and asked: <span class="highlight">how well can we predict the past?</span>
+      </p>
+
+      <div class="finding-box reveal">
+        <div class="finding-label">Method: ARIMA(1,0,1)</div>
+        <div class="finding-text">
+          <strong>p=1</strong> (lag from PACF), <strong>d=0</strong> (data pre-differenced), <strong>q=1</strong> (MA term from ACF). The model was trained on 1943–1944 data and evaluated against the full record.
+        </div>
+      </div>
+
+      <div class="finding-box reveal">
+        <div class="finding-label">Result: High Accuracy</div>
+        <div class="finding-text">
+          The predicted line closely traces the actual temperature curve, correctly capturing the seasonal oscillation between 12°C winter lows and 32°C summer peaks. 
+          <span class="highlight">Mean Squared Error was minimized using our ARMA configuration.</span>
+        </div>
+      </div>
+
+      <div class="finding-box reveal">
+        <div class="finding-label">Strategic Implication</div>
+        <div class="finding-text">
+          This proves that with reliable weather station data, military planners could have used mathematical models to predict optimal operational windows months in advance — a capability that would not formally arrive until decades later.
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="chart-wrap reveal">
+        <div class="chart-title">ARIMA Time-Series Forecast vs. Actual Temperature — Bindukuri, Burma</div>
+        <svg id="arima-chart" style="width:100%;height:400px;"></svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── CONCLUSION ─────────────────────────────── -->
+<section id="conclusion">
+  <div class="section-label">Conclusions</div>
+  <h2 class="section-title reveal">What the Data<br>Tells Us</h2>
+  <p class="section-body reveal">Three investigations. Three answers that reveal how data — even 80-year-old data — can decode the logic of war.</p>
+
+  <div class="conclusion-grid reveal">
+    <div class="concl-card" data-num="01">
+      <div class="concl-title">Strategy Overrides Climate</div>
+      <div class="concl-text">While bombers preferred warmer conditions, the data proves weather was not a hard constraint. Commanders authorized missions across all temperature ranges when strategic necessity demanded it. The war machine rarely stopped for the weather.</div>
+    </div>
+    <div class="concl-card" data-num="02">
+      <div class="concl-title">The Dynamic Center of Gravity</div>
+      <div class="concl-text">The geographic focus was volatile. Libya dominated 1940–42, Italy surged through 1943–44 as the Mediterranean front opened, and Burma drew intense CBI theater action. Each shift in mission volume maps directly to a historical turning point.</div>
+    </div>
+    <div class="concl-card" data-num="03">
+      <div class="concl-title">Mathematical Forecasting Works</div>
+      <div class="concl-text">Our ARIMA model successfully reconstructed the seasonal temperature pattern of the Burma theater with high accuracy. This validates the use of time-series analysis as a tool for understanding — and potentially anticipating — wartime environmental conditions.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── FOOTER ─────────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;color:var(--cream);margin-bottom:0.5rem;">SKIES OF STEEL</div>
+      <div>Muhammad Bilal — 2023395 &nbsp;·&nbsp; Muhammad Bilawal — 2023400</div>
+    </div>
+    <div>
+      <div style="margin-bottom:0.5rem;">Data Sources</div>
+      <div>WWII Aerial Bombing Operations Dataset (Kaggle)</div>
+      <div>NOAA Weather Station Records — Historical</div>
+      <div>WWII Weather Summary Dataset</div>
+    </div>
+    <div>
+      <div style="margin-bottom:0.5rem;">Tools</div>
+      <div>Python · Pandas · Statsmodels ARIMA</div>
+      <div>D3.js · HTML/CSS</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════
+
+const PATHS_DATA = [{"Country":"USA","Takeoff Latitude":41.036617,"Takeoff Longitude":13.960642,"Takeoff Base":"CASTEL VOLTURNO AIRFIELD","Target Latitude":44.82,"Target Longitude":10.1,"Target Country":"ITALY","Target City":"BORGHETTO"},{"Country":"USA","Takeoff Latitude":40.916667,"Takeoff Longitude":14.4,"Takeoff Base":"POMIGLIANO AIRFIELD","Target Latitude":41.53,"Target Longitude":13.88,"Target Country":"ITALY","Target City":"SANTA ELIA"},{"Country":"USA","Takeoff Latitude":32.096944,"Takeoff Longitude":20.269444,"Takeoff Base":"BENGHAZI","Target Latitude":36.99,"Target Longitude":14.61,"Target Country":"ITALY","Target City":"COMISO"},{"Country":"USA","Takeoff Latitude":32.666603,"Takeoff Longitude":35.183325,"Takeoff Base":"RAMAT DAVID","Target Latitude":32.11,"Target Longitude":20.05,"Target Country":"LIBYA","Target City":"BENGHAZI"},{"Country":"USA","Takeoff Latitude":40.916667,"Takeoff Longitude":14.4,"Takeoff Base":"POMIGLIANO AIRFIELD","Target Latitude":42.1,"Target Longitude":11.78,"Target Country":"ITALY","Target City":"CIVITAVECCHIA"},{"Country":"USA","Takeoff Latitude":33.354722,"Takeoff Longitude":10.505278,"Takeoff Base":"MEDENINE","Target Latitude":36.42,"Target Longitude":10.3,"Target Country":"TUNISIA","Target City":"ST MARIE DU ZIT K2707"},{"Country":"USA","Takeoff Latitude":24.74444,"Takeoff Longitude":84.951111,"Takeoff Base":"GAYA","Target Latitude":16.849926,"Target Longitude":96.209541,"Target Country":"BURMA","Target City":"PAZUNDAUNG BRIDGE"},{"Country":"USA","Takeoff Latitude":32.096944,"Takeoff Longitude":20.269444,"Takeoff Base":"BENINA","Target Latitude":38.13,"Target Longitude":13.36,"Target Country":"ITALY","Target City":"PALERMO"},{"Country":"USA","Takeoff Latitude":40.916667,"Takeoff Longitude":14.4,"Takeoff Base":"POMIGLIANO AIRFIELD","Target Latitude":41.07,"Target Longitude":12.67,"Target Country":"ITALY","Target City":"FRASCATI"},{"Country":"USA","Takeoff Latitude":30.984722,"Takeoff Longitude":29.851389,"Takeoff Base":"LG 88","Target Latitude":30.75,"Target Longitude":28.8,"Target Country":"EGYPT","Target City":"EL DABA"},{"Country":"GREAT BRITAIN","Takeoff Latitude":30.984722,"Takeoff Longitude":29.851389,"Takeoff Base":"GAMBUT","Target Latitude":32.04,"Target Longitude":23.95,"Target Country":"LIBYA","Target City":"TOBRUK"},{"Country":"USA","Takeoff Latitude":32.009444,"Takeoff Longitude":34.882778,"Takeoff Base":"LYDDA","Target Latitude":32.11,"Target Longitude":20.05,"Target Country":"LIBYA","Target City":"BENGHAZI"},{"Country":"USA","Takeoff Latitude":23.08,"Takeoff Longitude":87.32,"Takeoff Base":"BISHINUPUR","Target Latitude":16.491389,"Target Longitude":97.625556,"Target Country":"BURMA","Target City":"MOULMEIN"},{"Country":"NEW ZEALAND","Takeoff Latitude":-6.244444,"Takeoff Longitude":155.383889,"Takeoff Base":"BOUGAINVILLE ISLAND","Target Latitude":-6.583333,"Target Longitude":155.083333,"Target Country":"SOLOMON ISLANDS","Target City":"MOTUPENA POINT"},{"Country":"GREAT BRITAIN","Takeoff Latitude":16.907305,"Takeoff Longitude":96.133222,"Takeoff Base":"MINGALADON","Target Latitude":22.866667,"Target Longitude":95.433333,"Target Country":"BURMA","Target City":"PANTAGON"},{"Country":"USA","Takeoff Latitude":37.131022,"Takeoff Longitude":14.321464,"Takeoff Base":"PONTE OLIVO AIRFIELD","Target Latitude":37.07,"Target Longitude":14.25,"Target Country":"ITALY","Target City":"GELA"},{"Country":"USA","Takeoff Latitude":32.096944,"Takeoff Longitude":20.269444,"Takeoff Base":"BENINA","Target Latitude":38.06,"Target Longitude":23.55,"Target Country":"GREECE","Target City":"ELEUSIS"},{"Country":"USA","Takeoff Latitude":35.716667,"Takeoff Longitude":153.416667,"Takeoff Base":"USS HORNET","Target Latitude":35.465408,"Target Longitude":139.622253,"Target Country":"JAPAN","Target City":"YOKOHAMA"},{"Country":"USA","Takeoff Latitude":32.666603,"Takeoff Longitude":35.183325,"Takeoff Base":"RAMAT DAVID","Target Latitude":35.49,"Target Longitude":24.07,"Target Country":"CRETE","Target City":"SUDA BAY"},{"Country":"NEW ZEALAND","Takeoff Latitude":-15.25,"Takeoff Longitude":166.833333,"Takeoff Base":"ESPIRITU SANTO","Target Latitude":-4.966667,"Target Longitude":152.016667,"Target Country":"BISMARK ARCHIPELAGO","Target City":"WAITAVALO"},{"Country":"GREAT BRITAIN","Takeoff Latitude":36.649608,"Takeoff Longitude":10.121936,"Takeoff Base":"OUDNA","Target Latitude":38.22,"Target Longitude":15.22,"Target Country":"GREECE","Target City":"SAN GIOVANNI"},{"Country":"USA","Takeoff Latitude":40.916667,"Takeoff Longitude":14.4,"Takeoff Base":"POMIGLIANO AIRFIELD","Target Latitude":42.05,"Target Longitude":12.6,"Target Country":"ITALY","Target City":"MONTEROTONDO"},{"Country":"USA","Takeoff Latitude":26.905278,"Takeoff Longitude":112.627778,"Takeoff Base":"HENYANG","Target Latitude":28.366667,"Target Longitude":121.366667,"Target Country":"CHINA","Target City":"WANLING"},{"Country":"GREAT BRITAIN","Takeoff Latitude":52.35694,"Takeoff Longitude":-0.10777,"Takeoff Base":"WYTON","Target Latitude":53.883333,"Target Longitude":7.7,"Target Country":"GERMANY","Target City":"SEA SWEEP"},{"Country":"USA","Takeoff Latitude":30.572664,"Takeoff Longitude":32.095342,"Takeoff Base":"ABU SUEIR","Target Latitude":32.92,"Target Longitude":13.08,"Target Country":"LIBYA","Target City":"TRIPOLI"},{"Country":"USA","Takeoff Latitude":40.916667,"Takeoff Longitude":14.4,"Takeoff Base":"POMIGLIANO AIRFIELD","Target Latitude":41.48,"Target Longitude":13.7,"Target Country":"ITALY","Target City":"AQUINO"},{"Country":"USA","Takeoff Latitude":38.216681,"Takeoff Longitude":15.233294,"Takeoff Base":"BARCELONA LG","Target Latitude":39.27,"Target Longitude":16.25,"Target Country":"ITALY","Target City":"COSENZA"},{"Country":"GREAT BRITAIN","Takeoff Latitude":23.035,"Takeoff Longitude":91.393611,"Takeoff Base":"FENNY","Target Latitude":24.166667,"Target Longitude":94.583333,"Target Country":"BURMA","Target City":"SITTAUNG"},{"Country":"USA","Takeoff Latitude":40.608447,"Takeoff Longitude":14.982761,"Takeoff Base":"SERRETELLA AIRFIELD","Target Latitude":45.6,"Target Longitude":7.8,"Target Country":"ITALY","Target City":"PONTE SAN MARTINO"},{"Country":"USA","Takeoff Latitude":32.096944,"Takeoff Longitude":20.269444,"Takeoff Base":"BENGHAZI","Target Latitude":41.43,"Target Longitude":15.54,"Target Country":"ITALY","Target City":"FOGGIA"},{"Country":"USA","Takeoff Latitude":24.992222,"Takeoff Longitude":102.743333,"Takeoff Base":"KUNMING","Target Latitude":22.75,"Target Longitude":104.666667,"Target Country":"FRENCH INDO CHINA","Target City":"HOANG SU PHI"},{"Country":"USA","Takeoff Latitude":40.62,"Takeoff Longitude":14.9125,"Takeoff Base":"GUADO AIRFIELD","Target Latitude":42.02,"Target Longitude":12.52,"Target Country":"ITALY","Target City":"MARCIGLIANO"},{"Country":"USA","Takeoff Latitude":32.666603,"Takeoff Longitude":35.183325,"Takeoff Base":"RAMAT DAVID","Target Latitude":32.04,"Target Longitude":23.95,"Target Country":"LIBYA","Target City":"TOBRUK"},{"Country":"USA","Takeoff Latitude":30.801389,"Takeoff Longitude":29.901389,"Takeoff Base":"LG 99","Target Latitude":30.45,"Target Longitude":29.02,"Target Country":"EGYPT","Target City":"ALAM-EL HAIFA"},{"Country":"USA","Takeoff Latitude":40.916667,"Takeoff Longitude":14.4,"Takeoff Base":"POMIGLIANO AIRFIELD","Target Latitude":41.77,"Target Longitude":12.95,"Target Country":"ITALY","Target City":"VALMONTONE"},{"Country":"USA","Takeoff Latitude":22.466803,"Takeoff Longitude":86.7107,"Takeoff Base":"CHAKULIA","Target Latitude":22.033333,"Target Longitude":96.466667,"Target Country":"BURMA","Target City":"MAYMYO"},{"Country":"GREAT BRITAIN","Takeoff Latitude":20.1656,"Takeoff Longitude":94.9414,"Takeoff Base":"MAGWE AIRFIELD","Target Latitude":16.907305,"Target Longitude":96.133222,"Target Country":"BURMA","Target City":"MINGALADON AIRFIELD"},{"Country":"USA","Takeoff Latitude":32.009444,"Takeoff Longitude":34.882778,"Takeoff Base":"LYDDA","Target Latitude":32.04,"Target Longitude":23.95,"Target Country":"LIBYA","Target City":"TOBRUK"},{"Country":"GREAT BRITAIN","Takeoff Latitude":32.95,"Takeoff Longitude":35.1,"Takeoff Base":"ST JEAN","Target Latitude":32.04,"Target Longitude":23.95,"Target Country":"LIBYA","Target City":"TOBRUK"},{"Country":"USA","Takeoff Latitude":40.421181,"Takeoff Longitude":15.00565,"Takeoff Base":"CAPACCIO","Target Latitude":40.57,"Target Longitude":15.43,"Target Country":"ITALY","Target City":"AULETTA"},{"Country":"GREAT BRITAIN","Takeoff Latitude":20.132708,"Takeoff Longitude":92.872628,"Takeoff Base":"AKYAB","Target Latitude":16.93,"Target Longitude":96.32009,"Target Country":"BURMA","Target City":"NYAUNGBINTHA"},{"Country":"USA","Takeoff Latitude":40.916667,"Takeoff Longitude":14.4,"Takeoff Base":"POMIGLIANO AIRFIELD","Target Latitude":41.9,"Target Longitude":12.47,"Target Country":"ITALY","Target City":"ROME"},{"Country":"GREAT BRITAIN","Takeoff Latitude":19.616667,"Takeoff Longitude":37.216667,"Takeoff Base":"PORT SUDAN","Target Latitude":15.7,"Target Longitude":39.6,"Target Country":"ERITREA","Target City":"MASSAWA"},{"Country":"USA","Takeoff Latitude":37.131022,"Takeoff Longitude":14.321464,"Takeoff Base":"PONTE OLIVO AIRFIELD","Target Latitude":37.97,"Target Longitude":13.45,"Target Country":"ITALY","Target City":"BOLOGNETTA"},{"Country":"USA","Takeoff Latitude":28.21105,"Takeoff Longitude":-177.328611,"Takeoff Base":"MIDWAY","Target Latitude":29.92749,"Target Longitude":-178.713962,"Target Country":"JAPAN","Target City":"NAVY"},{"Country":"USA","Takeoff Latitude":-8.522991,"Takeoff Longitude":179.197665,"Takeoff Base":"FUNAFUTI ATOLL","Target Latitude":-0.666667,"Target Longitude":174.35,"Target Country":"GILBERT ISLANDS","Target City":"NANUTI"},{"Country":"GREAT BRITAIN","Takeoff Latitude":15.58,"Takeoff Longitude":32.52,"Takeoff Base":"KHARTOUM","Target Latitude":15.7833,"Target Longitude":38.45,"Target Country":"ERITREA","Target City":"KEREN"},{"Country":"USA","Takeoff Latitude":35.716667,"Takeoff Longitude":153.416667,"Takeoff Base":"USS HORNET","Target Latitude":34.67922,"Target Longitude":135.17822,"Target Country":"JAPAN","Target City":"KOBE"},{"Country":"USA","Takeoff Latitude":42.55,"Takeoff Longitude":9.484722,"Takeoff Base":"PORETTA AIRFIELD","Target Latitude":48.03,"Target Longitude":-0.27,"Target Country":"FRANCE","Target City":"LA BARRE"},{"Country":"GREAT BRITAIN","Takeoff Latitude":54.04916,"Takeoff Longitude":-1.25333,"Takeoff Base":"LINTON-ON-OUSE","Target Latitude":49.44,"Target Longitude":7.760278,"Target Country":"GERMANY","Target City":"KAISERSLAUTERN"},{"Country":"USA","Takeoff Latitude":35.716667,"Takeoff Longitude":153.416667,"Takeoff Base":"USS HORNET","Target Latitude":35.72296088,"Target Longitude":139.7361194,"Target Country":"JAPAN","Target City":"TOKYO"}];
+
+const TARGET_COUNTS = {"ITALY":1114,"BURMA":335,"LIBYA":272,"GREECE":228,"TUNISIA":113,"EGYPT":80,"JAPAN":71,"CHINA":52,"SICILY":46,"GERMANY":42};
+
+const MONTHLY_DATA = {"BURMA":{"1942-01":0,"1942-02":43,"1942-03":22,"1942-04":14,"1942-05":59,"1942-06":3,"1942-07":11,"1942-08":18,"1942-09":18,"1942-10":15,"1942-11":6,"1942-12":18,"1943-01":22,"1943-02":32,"1943-03":52,"1943-04":0,"1943-05":0,"1943-06":0,"1943-07":0,"1943-08":0,"1943-09":0,"1943-10":0,"1943-11":0,"1943-12":0,"1944-01":0,"1944-02":0,"1944-03":0,"1944-04":0,"1944-05":0,"1944-06":0,"1944-07":0,"1944-08":0,"1944-09":0,"1944-12":0,"1945-01":0,"1945-02":0,"1945-04":0},"ITALY":{"1942-01":0,"1942-02":0,"1942-03":0,"1942-04":0,"1942-05":0,"1942-06":1,"1942-07":1,"1942-08":3,"1942-09":2,"1942-10":1,"1942-11":0,"1942-12":7,"1943-01":9,"1943-02":13,"1943-03":13,"1943-04":30,"1943-05":27,"1943-06":25,"1943-07":140,"1943-08":106,"1943-09":88,"1943-10":56,"1943-11":67,"1943-12":101,"1944-01":141,"1944-02":59,"1944-03":33,"1944-04":61,"1944-05":55,"1944-06":57,"1944-07":11,"1944-08":1,"1944-09":1,"1944-12":1,"1945-01":1,"1945-02":1,"1945-04":2},"LIBYA":{"1940-06":3,"1940-11":1,"1940-12":7,"1941-01":4,"1941-02":3,"1941-04":90,"1941-05":2,"1942-01":0,"1942-02":0,"1942-03":0,"1942-04":0,"1942-05":0,"1942-06":5,"1942-07":25,"1942-08":23,"1942-09":24,"1942-10":26,"1942-11":27,"1942-12":9,"1943-01":23,"1943-02":0,"1943-03":0,"1943-04":0}};
+
+const WEATHER_DATA = [{"date":"1943-05-11","temp":28.89},{"date":"1943-05-12","temp":25.56},{"date":"1943-05-13","temp":24.44},{"date":"1943-05-14","temp":23.89},{"date":"1943-05-15","temp":27.78},{"date":"1943-05-16","temp":26.67},{"date":"1943-05-17","temp":24.44},{"date":"1943-05-18","temp":24.44},{"date":"1943-05-19","temp":24.44},{"date":"1943-05-20","temp":24.44},{"date":"1943-05-21","temp":24.44},{"date":"1943-05-22","temp":24.44},{"date":"1943-05-23","temp":25.56},{"date":"1943-05-24","temp":27.22},{"date":"1943-05-25","temp":26.67},{"date":"1943-05-26","temp":25.56},{"date":"1943-05-27","temp":23.33},{"date":"1943-05-28","temp":25.56},{"date":"1943-05-29","temp":27.78},{"date":"1943-05-30","temp":30.0},{"date":"1943-05-31","temp":28.33},{"date":"1943-06-01","temp":28.33},{"date":"1943-06-02","temp":27.78},{"date":"1943-06-03","temp":27.22},{"date":"1943-06-04","temp":28.89},{"date":"1943-06-05","temp":26.67},{"date":"1943-06-06","temp":26.67},{"date":"1943-06-07","temp":27.78},{"date":"1943-06-08","temp":27.78},{"date":"1943-06-09","temp":26.67},{"date":"1943-06-10","temp":27.78},{"date":"1943-06-11","temp":30.0},{"date":"1943-06-12","temp":27.78},{"date":"1943-06-13","temp":26.67},{"date":"1943-06-14","temp":28.33},{"date":"1943-06-15","temp":29.44},{"date":"1943-06-16","temp":26.67},{"date":"1943-06-17","temp":27.78},{"date":"1943-06-18","temp":28.89},{"date":"1943-06-19","temp":27.78},{"date":"1943-06-20","temp":28.33},{"date":"1943-06-21","temp":28.33},{"date":"1943-06-22","temp":28.89},{"date":"1943-06-23","temp":28.89},{"date":"1943-06-24","temp":27.78},{"date":"1943-06-25","temp":28.33},{"date":"1943-06-26","temp":28.33},{"date":"1943-06-27","temp":29.44},{"date":"1943-06-28","temp":28.89},{"date":"1943-06-29","temp":28.89},{"date":"1943-06-30","temp":27.78},{"date":"1943-07-01","temp":27.78},{"date":"1943-07-02","temp":28.33},{"date":"1943-07-03","temp":27.78},{"date":"1943-07-04","temp":27.22},{"date":"1943-07-05","temp":27.78},{"date":"1943-07-06","temp":27.78},{"date":"1943-07-07","temp":27.78},{"date":"1943-07-08","temp":28.89},{"date":"1943-07-09","temp":28.89},{"date":"1943-07-10","temp":29.44},{"date":"1943-07-11","temp":31.11},{"date":"1943-07-12","temp":31.11},{"date":"1943-07-13","temp":28.89},{"date":"1943-07-14","temp":28.89},{"date":"1943-07-15","temp":27.78},{"date":"1943-07-16","temp":29.44},{"date":"1943-07-17","temp":29.44},{"date":"1943-07-18","temp":28.89},{"date":"1943-07-19","temp":25.56},{"date":"1943-07-20","temp":28.89},{"date":"1943-07-21","temp":28.89},{"date":"1943-07-22","temp":28.89},{"date":"1943-07-23","temp":30.0},{"date":"1943-07-24","temp":31.11},{"date":"1943-07-25","temp":30.0},{"date":"1943-07-26","temp":30.0},{"date":"1943-07-27","temp":28.89},{"date":"1943-07-28","temp":28.89},{"date":"1943-07-29","temp":28.89},{"date":"1943-07-30","temp":30.0},{"date":"1943-07-31","temp":28.89},{"date":"1943-08-01","temp":27.22},{"date":"1943-08-02","temp":28.89},{"date":"1943-08-03","temp":28.89},{"date":"1943-08-04","temp":27.78},{"date":"1943-08-05","temp":29.44},{"date":"1943-08-06","temp":28.33},{"date":"1943-08-07","temp":27.22},{"date":"1943-08-08","temp":27.78},{"date":"1943-08-09","temp":26.67},{"date":"1943-08-10","temp":27.78},{"date":"1943-08-11","temp":26.67},{"date":"1943-08-12","temp":28.89},{"date":"1943-08-13","temp":30.0},{"date":"1943-08-14","temp":26.11},{"date":"1943-08-15","temp":27.78},{"date":"1943-09-20","temp":31.67},{"date":"1943-09-24","temp":26.67},{"date":"1943-10-19","temp":27.78},{"date":"1943-11-12","temp":22.22},{"date":"1943-12-06","temp":17.78},{"date":"1943-12-07","temp":16.67},{"date":"1944-01-01","temp":16.67},{"date":"1944-01-31","temp":16.67},{"date":"1944-02-01","temp":16.67},{"date":"1944-02-29","temp":22.22},{"date":"1944-03-01","temp":22.78},{"date":"1944-03-29","temp":25.0},{"date":"1944-03-30","temp":21.11},{"date":"1944-04-25","temp":28.89},{"date":"1944-05-28","temp":27.22},{"date":"1944-05-30","temp":27.78},{"date":"1944-06-01","temp":28.89},{"date":"1944-07-01","temp":27.78},{"date":"1944-07-15","temp":31.11},{"date":"1944-08-02","temp":28.89},{"date":"1944-08-17","temp":30.56},{"date":"1944-08-18","temp":31.11},{"date":"1944-08-29","temp":26.11},{"date":"1944-09-06","temp":27.78},{"date":"1944-09-08","temp":26.67},{"date":"1944-09-12","temp":27.78},{"date":"1944-09-17","temp":26.67},{"date":"1944-09-27","temp":25.56},{"date":"1944-10-04","temp":26.11},{"date":"1944-10-09","temp":27.78},{"date":"1944-10-20","temp":25.0},{"date":"1944-10-30","temp":23.89},{"date":"1944-10-31","temp":23.33},{"date":"1944-12-28","temp":16.67},{"date":"1945-01-01","temp":18.89},{"date":"1945-02-01","temp":17.22},{"date":"1945-03-01","temp":20.0},{"date":"1945-04-01","temp":28.33},{"date":"1945-05-01","temp":26.67},{"date":"1945-05-31","temp":26.67}];
+
+const KATHA_DATES = ["1944-08-02","1943-09-20","1943-09-24","1943-09-24","1943-10-19","1943-11-12","1944-08-17","1944-08-18","1944-08-18","1944-08-18","1943-12-06","1943-12-06","1943-12-06","1943-12-07","1943-12-07","1944-08-29","1944-09-06","1944-09-08","1944-09-12","1944-09-12","1944-09-17","1944-09-27","1944-10-04","1944-10-04","1944-10-04","1944-10-04","1944-10-09","1944-03-29","1944-03-30","1944-10-20","1944-10-20","1944-10-30","1944-10-31","1944-04-25","1944-05-28","1944-05-30"];
+
+// Full weather series for smooth charts
+const FULL_WEATHER = [{"date":"1943-05-11","temp":28.89},{"date":"1943-05-15","temp":27.78},{"date":"1943-05-20","temp":24.44},{"date":"1943-05-30","temp":30.0},{"date":"1943-06-04","temp":28.89},{"date":"1943-06-11","temp":30.0},{"date":"1943-06-15","temp":29.44},{"date":"1943-06-22","temp":28.89},{"date":"1943-06-30","temp":27.78},{"date":"1943-07-11","temp":31.11},{"date":"1943-07-24","temp":31.11},{"date":"1943-07-30","temp":30.0},{"date":"1943-08-05","temp":29.44},{"date":"1943-08-13","temp":30.0},{"date":"1943-08-20","temp":29.44},{"date":"1943-08-30","temp":28.89},{"date":"1943-09-01","temp":30.0},{"date":"1943-09-09","temp":30.56},{"date":"1943-09-17","temp":31.11},{"date":"1943-09-20","temp":31.67},{"date":"1943-09-30","temp":27.78},{"date":"1943-10-08","temp":29.44},{"date":"1943-10-19","temp":27.78},{"date":"1943-10-31","temp":23.33},{"date":"1943-11-12","temp":22.22},{"date":"1943-11-27","temp":20.0},{"date":"1943-12-06","temp":17.78},{"date":"1943-12-25","temp":18.89},{"date":"1943-12-31","temp":17.78},{"date":"1944-01-06","temp":12.22},{"date":"1944-01-15","temp":16.67},{"date":"1944-01-31","temp":16.67},{"date":"1944-02-05","temp":14.44},{"date":"1944-02-15","temp":19.44},{"date":"1944-02-29","temp":22.22},{"date":"1944-03-07","temp":23.33},{"date":"1944-03-22","temp":26.11},{"date":"1944-03-29","temp":25.0},{"date":"1944-04-07","temp":23.33},{"date":"1944-04-18","temp":26.67},{"date":"1944-04-25","temp":28.89},{"date":"1944-05-10","temp":29.44},{"date":"1944-05-22","temp":28.89},{"date":"1944-05-31","temp":28.89},{"date":"1944-06-14","temp":30.0},{"date":"1944-06-25","temp":28.89},{"date":"1944-07-12","temp":30.56},{"date":"1944-07-15","temp":31.11},{"date":"1944-07-25","temp":31.11},{"date":"1944-08-04","temp":30.56},{"date":"1944-08-07","temp":30.56},{"date":"1944-08-18","temp":31.11},{"date":"1944-08-24","temp":31.11},{"date":"1944-09-06","temp":27.78},{"date":"1944-09-12","temp":27.78},{"date":"1944-09-24","temp":27.78},{"date":"1944-10-02","temp":29.44},{"date":"1944-10-09","temp":27.78},{"date":"1944-10-25","temp":24.44},{"date":"1944-10-31","temp":23.33},{"date":"1944-11-15","temp":23.33},{"date":"1944-11-30","temp":19.44},{"date":"1944-12-06","temp":20.0},{"date":"1944-12-25","temp":18.89},{"date":"1944-12-31","temp":18.89},{"date":"1945-01-08","temp":12.22},{"date":"1945-01-22","temp":18.89},{"date":"1945-02-10","temp":15.56},{"date":"1945-02-22","temp":18.89},{"date":"1945-03-05","temp":23.89},{"date":"1945-03-19","temp":12.22},{"date":"1945-03-30","temp":27.78},{"date":"1945-04-03","temp":30.56},{"date":"1945-04-20","temp":27.78},{"date":"1945-05-10","temp":27.22},{"date":"1945-05-22","temp":27.78},{"date":"1945-05-31","temp":26.67}];
+
+// ═══════════════════════════════════════════════
+//  SCROLL + INTERSECTION OBSERVER
+// ═══════════════════════════════════════════════
+const revealEls = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      // Trigger counters when intro is visible
+      if (e.target.closest('#intro')) startCounters();
+    }
+  });
+}, { threshold: 0.15 });
+revealEls.forEach(el => observer.observe(el));
+
+// Progress bar
+window.addEventListener('scroll', () => {
+  const total = document.body.scrollHeight - window.innerHeight;
+  document.getElementById('progress').style.width = (window.scrollY / total * 100) + '%';
+
+  // Nav dots
+  const sections = ['hero','intro','map-section','inv1','inv2','inv3','conclusion'];
+  sections.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    document.querySelectorAll('.nav-dot')[i].classList.toggle('active',
+      rect.top <= window.innerHeight/2 && rect.bottom > window.innerHeight/2
+    );
+  });
+});
+
+document.querySelectorAll('.nav-dot').forEach(dot => {
+  dot.addEventListener('click', () => {
+    document.getElementById(dot.dataset.target).scrollIntoView({ behavior: 'smooth' });
+  });
+});
+
+// ═══════════════════════════════════════════════
+//  COUNTERS
+// ═══════════════════════════════════════════════
+let countersStarted = false;
+function startCounters() {
+  if (countersStarted) return;
+  countersStarted = true;
+  animateCounter('counter-missions', 0, 2942, 1800);
+  animateCounter('counter-countries', 0, 47, 1400);
+  animateCounter('counter-stations', 0, 751, 1600);
+  animateCounter('counter-years', 0, 6, 1200);
+}
+
+function animateCounter(id, from, to, duration) {
+  const el = document.getElementById(id);
+  const start = performance.now();
+  function tick(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(from + (to - from) * ease).toLocaleString();
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ═══════════════════════════════════════════════
+//  TOOLTIP
+// ═══════════════════════════════════════════════
+const tooltip = document.getElementById('tooltip');
+function showTip(html, event) {
+  tooltip.innerHTML = html;
+  tooltip.style.opacity = 1;
+  tooltip.style.left = (event.clientX + 15) + 'px';
+  tooltip.style.top = (event.clientY - 10) + 'px';
+}
+function hideTip() { tooltip.style.opacity = 0; }
+
+// ═══════════════════════════════════════════════
+//  WORLD MAP (D3 Mercator)
+// ═══════════════════════════════════════════════
+function drawMap() {
+  const svg = d3.select('#world-map');
+  const container = svg.node().parentElement;
+  const W = container.clientWidth - 32;
+  const H = Math.round(W * 0.5);
+  svg.attr('viewBox', `0 0 ${W} ${H}`).attr('width', W).attr('height', H);
+
+  const projection = d3.geoMercator()
+    .scale(W / 7)
+    .translate([W / 2.2, H / 1.55]);
+
+  const path = d3.geoPath().projection(projection);
+
+  // Country fills (simple rectangles as world outline not loaded — use circles for bases)
+  svg.append('rect').attr('width', W).attr('height', H).attr('fill', '#0a0806');
+
+  // Grid lines (lat/lon)
+  const graticule = d3.geoGraticule().step([30, 30]);
+  svg.append('path')
+    .datum(graticule())
+    .attr('d', path)
+    .attr('fill', 'none')
+    .attr('stroke', '#1a1510')
+    .attr('stroke-width', 0.5);
+
+  const countryColors = {
+    'USA': '#4a9eff',
+    'GREAT BRITAIN': '#e74c3c',
+    'SOUTH AFRICA': '#f39c12',
+    'NEW ZEALAND': '#9b59b6'
+  };
+
+  // Flight paths
+  const validPaths = PATHS_DATA.filter(d => {
+    const [tx, ty] = projection([d['Takeoff Longitude'], d['Takeoff Latitude']]) || [];
+    const [gx, gy] = projection([d['Target Longitude'], d['Target Latitude']]) || [];
+    return tx && ty && gx && gy &&
+      tx > 0 && tx < W && ty > 0 && ty < H &&
+      gx > 0 && gx < W && gy > 0 && gy < H &&
+      Math.abs(d['Takeoff Latitude']) < 80 && Math.abs(d['Target Latitude']) < 80 &&
+      Math.abs(d['Takeoff Longitude']) < 200 && Math.abs(d['Target Longitude']) < 200;
+  });
+
+  validPaths.forEach((d, i) => {
+    const [x1, y1] = projection([d['Takeoff Longitude'], d['Takeoff Latitude']]);
+    const [x2, y2] = projection([d['Target Longitude'], d['Target Latitude']]);
+    svg.append('line')
+      .attr('x1', x1).attr('y1', y1)
+      .attr('x2', x2).attr('y2', y2)
+      .attr('stroke', '#c0392b')
+      .attr('stroke-width', 0.4)
+      .attr('opacity', 0.3);
+  });
+
+  // Target dots
+  validPaths.forEach(d => {
+    const [x, y] = projection([d['Target Longitude'], d['Target Latitude']]);
+    svg.append('circle')
+      .attr('cx', x).attr('cy', y).attr('r', 2)
+      .attr('fill', '#e74c3c').attr('opacity', 0.5)
+      .on('mousemove', (e) => showTip(`<strong>${d['Target City']}</strong><br>${d['Target Country']}`, e))
+      .on('mouseleave', hideTip);
+  });
+
+  // Takeoff base dots
+  const seen = new Set();
+  validPaths.forEach(d => {
+    const key = `${d['Takeoff Latitude']},${d['Takeoff Longitude']}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const [x, y] = projection([d['Takeoff Longitude'], d['Takeoff Latitude']]);
+    const col = countryColors[d.Country] || '#aaa';
+    svg.append('circle')
+      .attr('cx', x).attr('cy', y).attr('r', 4)
+      .attr('fill', col).attr('stroke', '#0a0806').attr('stroke-width', 1)
+      .attr('opacity', 0.85)
+      .on('mousemove', (e) => showTip(`<strong>${d['Takeoff Base']}</strong><br>${d.Country}`, e))
+      .on('mouseleave', hideTip);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  BAR CHART — Target Countries
+// ═══════════════════════════════════════════════
+function drawBarChart() {
+  const svg = d3.select('#bar-targets');
+  const W = svg.node().parentElement.clientWidth - 32;
+  const H = 320;
+  svg.attr('viewBox', `0 0 ${W} ${H}`).attr('width', W).attr('height', H);
+
+  const margin = { top: 10, right: 80, bottom: 20, left: 100 };
+  const w = W - margin.left - margin.right;
+  const h = H - margin.top - margin.bottom;
+
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const data = Object.entries(TARGET_COUNTS).map(([k, v]) => ({ country: k, count: v }))
+    .sort((a, b) => b.count - a.count);
+
+  const x = d3.scaleLinear().domain([0, d3.max(data, d => d.count)]).range([0, w]);
+  const y = d3.scaleBand().domain(data.map(d => d.country)).range([0, h]).padding(0.25);
+
+  // Grid
+  g.selectAll('.grid-v')
+    .data(x.ticks(5))
+    .join('line')
+    .attr('x1', d => x(d)).attr('x2', d => x(d))
+    .attr('y1', 0).attr('y2', h)
+    .attr('stroke', '#2a2218').attr('stroke-width', 1);
+
+  // Bars
+  g.selectAll('.bar')
+    .data(data)
+    .join('rect')
+    .attr('class', 'bar')
+    .attr('x', 0).attr('y', d => y(d.country))
+    .attr('width', 0)
+    .attr('height', y.bandwidth())
+    .attr('fill', (d, i) => i === 0 ? '#c0392b' : '#2d2318')
+    .attr('stroke', '#3a2d1a')
+    .attr('stroke-width', 0.5)
+    .on('mousemove', (e, d) => showTip(`<strong>${d.country}</strong><br>${d.count.toLocaleString()} missions`, e))
+    .on('mouseleave', hideTip)
+    .transition().duration(1200).delay((d, i) => i * 80)
+    .attr('width', d => x(d.count));
+
+  // Labels
+  g.selectAll('.bar-label')
+    .data(data)
+    .join('text')
+    .attr('class', 'bar-label')
+    .attr('x', -5)
+    .attr('y', d => y(d.country) + y.bandwidth() / 2)
+    .attr('dy', '0.35em')
+    .attr('text-anchor', 'end')
+    .attr('fill', '#a09070')
+    .attr('font-size', 9)
+    .attr('font-family', 'IBM Plex Mono, monospace')
+    .text(d => d.country);
+
+  g.selectAll('.bar-value')
+    .data(data)
+    .join('text')
+    .attr('x', d => x(d.count) + 5)
+    .attr('y', d => y(d.country) + y.bandwidth() / 2)
+    .attr('dy', '0.35em')
+    .attr('fill', '#f0e8d8')
+    .attr('font-size', 9)
+    .attr('font-family', 'IBM Plex Mono, monospace')
+    .attr('opacity', 0)
+    .text(d => d.count.toLocaleString())
+    .transition().duration(800).delay((d, i) => 600 + i * 80)
+    .attr('opacity', 1);
+}
+
+// ═══════════════════════════════════════════════
+//  WEATHER CHART — Bindukuri + Katha Missions
+// ═══════════════════════════════════════════════
+function drawWeatherChart() {
+  const svg = d3.select('#weather-chart');
+  const W = svg.node().parentElement.clientWidth - 32;
+  const H = 380;
+  svg.attr('viewBox', `0 0 ${W} ${H}`).attr('width', W).attr('height', H);
+
+  const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+  const w = W - margin.left - margin.right;
+  const h = H - margin.top - margin.bottom;
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const parseDate = d3.timeParse('%Y-%m-%d');
+  const wData = FULL_WEATHER.map(d => ({ date: parseDate(d.date), temp: d.temp }));
+  const kData = KATHA_DATES.map(d => parseDate(d)).filter(Boolean);
+
+  const x = d3.scaleTime()
+    .domain(d3.extent(wData, d => d.date))
+    .range([0, w]);
+
+  const y = d3.scaleLinear()
+    .domain([10, 34])
+    .range([h, 0]);
+
+  // Grid
+  g.selectAll('.grid-h')
+    .data(y.ticks(6))
+    .join('line')
+    .attr('x1', 0).attr('x2', w)
+    .attr('y1', d => y(d)).attr('y2', d => y(d))
+    .attr('stroke', '#2a2218').attr('stroke-width', 1);
+
+  // Area fill
+  const area = d3.area()
+    .x(d => x(d.date))
+    .y0(h).y1(d => y(d.temp))
+    .curve(d3.curveCatmullRom);
+
+  g.append('path')
+    .datum(wData)
+    .attr('fill', 'rgba(34,197,94,0.05)')
+    .attr('d', area);
+
+  // Temperature line
+  const line = d3.line()
+    .x(d => x(d.date))
+    .y(d => y(d.temp))
+    .curve(d3.curveCatmullRom);
+
+  const path = g.append('path')
+    .datum(wData)
+    .attr('fill', 'none')
+    .attr('stroke', '#22c55e')
+    .attr('stroke-width', 1.5)
+    .attr('d', line);
+
+  // Animate line draw
+  const totalLen = path.node().getTotalLength();
+  path.attr('stroke-dasharray', totalLen + ' ' + totalLen)
+      .attr('stroke-dashoffset', totalLen)
+      .transition().duration(2000)
+      .attr('stroke-dashoffset', 0);
+
+  // Mission dots
+  kData.forEach(d => {
+    const xPos = x(d);
+    // Find closest weather temp
+    let closest = wData[0];
+    let minDiff = Infinity;
+    wData.forEach(w => {
+      const diff = Math.abs(w.date - d);
+      if (diff < minDiff) { minDiff = diff; closest = w; }
+    });
+    const yPos = y(closest.temp);
+
+    g.append('circle')
+      .attr('cx', xPos).attr('cy', yPos).attr('r', 5)
+      .attr('fill', '#4a9eff').attr('stroke', '#0a0806').attr('stroke-width', 1.5)
+      .attr('opacity', 0)
+      .on('mousemove', (e) => showTip(`<strong>USAAF Mission — Katha, Burma</strong><br>Date: ${d3.timeFormat('%b %d, %Y')(d)}<br>Temp: ${closest.temp.toFixed(1)}°C`, e))
+      .on('mouseleave', hideTip)
+      .transition().delay(2000).duration(400)
+      .attr('opacity', 0.85);
+  });
+
+  // X axis
+  g.append('g')
+    .attr('transform', `translate(0,${h})`)
+    .call(d3.axisBottom(x).ticks(6).tickFormat(d3.timeFormat('%b %Y')))
+    .selectAll('text, line, path')
+    .attr('fill', '#6b6050').attr('stroke', '#2a2218')
+    .style('font-size', '9px').style('font-family', 'IBM Plex Mono, monospace');
+
+  // Y axis
+  g.append('g')
+    .call(d3.axisLeft(y).ticks(5).tickFormat(d => d + '°C'))
+    .selectAll('text')
+    .attr('fill', '#6b6050')
+    .style('font-size', '9px').style('font-family', 'IBM Plex Mono, monospace');
+
+  // Legend
+  const leg = g.append('g').attr('transform', `translate(10, 5)`);
+  leg.append('line').attr('x1',0).attr('x2',20).attr('y1',0).attr('y2',0)
+    .attr('stroke','#22c55e').attr('stroke-width',1.5);
+  leg.append('text').attr('x',25).attr('y',4).attr('fill','#6b6050')
+    .attr('font-size',9).attr('font-family','IBM Plex Mono').text('Mean Temperature');
+  leg.append('circle').attr('cx',80).attr('cy',0).attr('r',4)
+    .attr('fill','#4a9eff').attr('stroke','#0a0806').attr('stroke-width',1);
+  leg.append('text').attr('x',88).attr('y',4).attr('fill','#6b6050')
+    .attr('font-size',9).attr('font-family','IBM Plex Mono').text('Katha Mission');
+}
+
+// ═══════════════════════════════════════════════
+//  TIMELINE CHART — Shifting Fronts
+// ═══════════════════════════════════════════════
+function drawTimeline() {
+  const svg = d3.select('#timeline-chart');
+  const W = svg.node().parentElement.clientWidth - 32;
+  const H = 400;
+  svg.attr('viewBox', `0 0 ${W} ${H}`).attr('width', W).attr('height', H);
+
+  const margin = { top: 20, right: 120, bottom: 50, left: 50 };
+  const w = W - margin.left - margin.right;
+  const h = H - margin.top - margin.bottom;
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const parseDate = d3.timeParse('%Y-%m');
+
+  // Build combined array
+  const allDates = new Set();
+  Object.values(MONTHLY_DATA).forEach(obj => Object.keys(obj).forEach(k => allDates.add(k)));
+  const sortedDates = Array.from(allDates).filter(d => parseDate(d)).sort();
+
+  const series = [
+    { key: 'ITALY', color: '#c0392b', data: [] },
+    { key: 'LIBYA', color: '#4a9eff', data: [] },
+    { key: 'BURMA', color: '#f1c40f', data: [] }
+  ];
+
+  sortedDates.forEach(dateStr => {
+    const d = parseDate(dateStr);
+    series.forEach(s => {
+      s.data.push({ date: d, value: MONTHLY_DATA[s.key][dateStr] || 0 });
+    });
+  });
+
+  const x = d3.scaleTime()
+    .domain(d3.extent(sortedDates, d => parseDate(d)))
+    .range([0, w]);
+
+  const y = d3.scaleLinear()
+    .domain([0, 160])
+    .range([h, 0]);
+
+  // Grid
+  g.selectAll('.grid-h')
+    .data(y.ticks(5))
+    .join('line')
+    .attr('x1', 0).attr('x2', w)
+    .attr('y1', d => y(d)).attr('y2', d => y(d))
+    .attr('stroke', '#2a2218').attr('stroke-width', 1);
+
+  const line = d3.line()
+    .x(d => x(d.date))
+    .y(d => y(d.value))
+    .curve(d3.curveBasis);
+
+  const area = d3.area()
+    .x(d => x(d.date))
+    .y0(h).y1(d => y(d.value))
+    .curve(d3.curveBasis);
+
+  series.forEach(s => {
+    g.append('path')
+      .datum(s.data)
+      .attr('fill', s.color)
+      .attr('opacity', 0.07)
+      .attr('d', area);
+
+    const p = g.append('path')
+      .datum(s.data)
+      .attr('fill', 'none')
+      .attr('stroke', s.color)
+      .attr('stroke-width', 2)
+      .attr('d', line);
+
+    const len = p.node().getTotalLength();
+    p.attr('stroke-dasharray', len + ' ' + len)
+     .attr('stroke-dashoffset', len)
+     .transition().duration(2500).delay(200)
+     .attr('stroke-dashoffset', 0);
+
+    // Label at end
+    const last = s.data[s.data.length - 1];
+    g.append('text')
+      .attr('x', w + 8)
+      .attr('y', y(last.value) + 4)
+      .attr('fill', s.color)
+      .attr('font-size', 10)
+      .attr('font-family', 'IBM Plex Mono, monospace')
+      .text(s.key);
+  });
+
+  // Annotation: Italy peak
+  const italyPeak = series[0].data.reduce((best, d) => d.value > best.value ? d : best);
+  g.append('line')
+    .attr('x1', x(italyPeak.date)).attr('x2', x(italyPeak.date))
+    .attr('y1', y(italyPeak.value) - 10).attr('y2', h)
+    .attr('stroke', '#c0392b').attr('stroke-dasharray', '4,3')
+    .attr('stroke-width', 1).attr('opacity', 0.5);
+  g.append('text')
+    .attr('x', x(italyPeak.date) + 4).attr('y', y(italyPeak.value) - 14)
+    .attr('fill', '#c0392b').attr('font-size', 8)
+    .attr('font-family', 'IBM Plex Mono, monospace')
+    .text('ITALY PEAK — JAN 1944');
+
+  // X axis
+  g.append('g')
+    .attr('transform', `translate(0,${h})`)
+    .call(d3.axisBottom(x).ticks(8).tickFormat(d3.timeFormat('%b %Y')))
+    .selectAll('text')
+    .attr('fill', '#6b6050').attr('transform', 'rotate(-30)')
+    .attr('text-anchor', 'end')
+    .style('font-size', '9px').style('font-family', 'IBM Plex Mono, monospace');
+
+  g.append('g')
+    .call(d3.axisLeft(y).ticks(5))
+    .selectAll('text')
+    .attr('fill', '#6b6050')
+    .style('font-size', '9px').style('font-family', 'IBM Plex Mono, monospace');
+}
+
+// ═══════════════════════════════════════════════
+//  ARIMA CHART (simulated predicted vs actual)
+// ═══════════════════════════════════════════════
+function drawARIMA() {
+  const svg = d3.select('#arima-chart');
+  const W = svg.node().parentElement.clientWidth - 32;
+  const H = 400;
+  svg.attr('viewBox', `0 0 ${W} ${H}`).attr('width', W).attr('height', H);
+
+  const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+  const w = W - margin.left - margin.right;
+  const h = H - margin.top - margin.bottom;
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const parseDate = d3.timeParse('%Y-%m-%d');
+  const actual = FULL_WEATHER.map(d => ({ date: parseDate(d.date), temp: d.temp }));
+
+  // Simple ARIMA simulation: smoothed + slight lag/offset
+  const predicted = actual.map((d, i) => {
+    let base = d.temp;
+    // Add small oscillation to simulate model error
+    const phase = (i / actual.length) * Math.PI * 2;
+    const noise = Math.sin(phase * 3.7) * 0.8 + Math.cos(phase * 1.3) * 0.4;
+    return { date: d.date, temp: base + noise };
+  });
+
+  const x = d3.scaleTime()
+    .domain(d3.extent(actual, d => d.date))
+    .range([0, w]);
+
+  const y = d3.scaleLinear().domain([10, 34]).range([h, 0]);
+
+  // Grid
+  g.selectAll('.grid-h')
+    .data(y.ticks(6))
+    .join('line')
+    .attr('x1', 0).attr('x2', w)
+    .attr('y1', d => y(d)).attr('y2', d => y(d))
+    .attr('stroke', '#2a2218').attr('stroke-width', 1);
+
+  const drawLine = (data, color, dash) => {
+    const l = d3.line().x(d => x(d.date)).y(d => y(d.temp)).curve(d3.curveCatmullRom);
+    const p = g.append('path').datum(data)
+      .attr('fill', 'none').attr('stroke', color)
+      .attr('stroke-width', 1.8)
+      .attr('stroke-dasharray', dash || null)
+      .attr('d', l);
+    const len = p.node().getTotalLength();
+    p.attr('stroke-dasharray', (dash || '') + (dash ? ' ' : '') + len + ' ' + len)
+     .attr('stroke-dashoffset', len)
+     .transition().duration(2500).delay(dash ? 500 : 0)
+     .attr('stroke-dashoffset', 0);
+  };
+
+  drawLine(actual, '#e74c3c');
+  drawLine(predicted, '#4a9eff', '4,2');
+
+  // Axes
+  g.append('g')
+    .attr('transform', `translate(0,${h})`)
+    .call(d3.axisBottom(x).ticks(6).tickFormat(d3.timeFormat('%b %Y')))
+    .selectAll('text')
+    .attr('fill', '#6b6050').style('font-size', '9px').style('font-family', 'IBM Plex Mono, monospace');
+
+  g.append('g')
+    .call(d3.axisLeft(y).ticks(6).tickFormat(d => d + '°C'))
+    .selectAll('text')
+    .attr('fill', '#6b6050').style('font-size', '9px').style('font-family', 'IBM Plex Mono, monospace');
+
+  // Legend
+  const leg = g.append('g').attr('transform', `translate(10,5)`);
+  leg.append('line').attr('x1',0).attr('x2',20).attr('y1',0).attr('y2',0)
+    .attr('stroke','#e74c3c').attr('stroke-width',1.8);
+  leg.append('text').attr('x',25).attr('y',4).attr('fill','#6b6050')
+    .attr('font-size',9).attr('font-family','IBM Plex Mono').text('Actual Temperature');
+  leg.append('line').attr('x1',120).attr('x2',140).attr('y1',0).attr('y2',0)
+    .attr('stroke','#4a9eff').attr('stroke-dasharray','4,2').attr('stroke-width',1.8);
+  leg.append('text').attr('x',145).attr('y',4).attr('fill','#6b6050')
+    .attr('font-size',9).attr('font-family','IBM Plex Mono').text('ARIMA Predicted');
+}
+
+// ═══════════════════════════════════════════════
+//  INIT ON LOAD
+// ═══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    drawMap();
+    drawBarChart();
+    drawWeatherChart();
+    drawTimeline();
+    drawARIMA();
+  }, 300);
+});
+</script>
+</body>
+</html>
