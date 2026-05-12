@@ -1048,24 +1048,26 @@ async function drawMap() {
     svg.append('line')
       .attr('x1', x1).attr('y1', y1)
       .attr('x2', x2).attr('y2', y2)
-      .attr('stroke', '#c0392b')
-      .attr('stroke-width', 0.5)
-      .attr('opacity', 0.25);
+      .attr('stroke', '#e74c3c')
+      .attr('stroke-width', 1.2)
+      .attr('opacity', 0.55);
   });
 
-  // Target dots
+  // Target dots — small, translucent
   validPaths.forEach(d => {
     const pt = projection([d['Target Longitude'], d['Target Latitude']]);
     if (!pt) return;
     svg.append('circle')
       .attr('cx', pt[0]).attr('cy', pt[1]).attr('r', 2.5)
-      .attr('fill', '#e74c3c').attr('opacity', 0.6)
+      .attr('fill', '#e74c3c')
+      .attr('stroke', 'none')
+      .attr('opacity', 0.35)
       .style('cursor', 'pointer')
       .on('mousemove', (e) => showTip(`<strong>${d['Target City']}</strong><br>${d['Target Country']}`, e))
       .on('mouseleave', hideTip);
   });
 
-  // Takeoff base dots (deduplicated)
+  // Takeoff base dots (deduplicated) — small, solid color fill
   const seen = new Set();
   validPaths.forEach(d => {
     const key = `${d['Takeoff Latitude'].toFixed(2)},${d['Takeoff Longitude'].toFixed(2)}`;
@@ -1075,9 +1077,10 @@ async function drawMap() {
     if (!pt) return;
     const col = countryColors[d.Country] || '#aaa';
     svg.append('circle')
-      .attr('cx', pt[0]).attr('cy', pt[1]).attr('r', 5)
-      .attr('fill', col).attr('stroke', '#07060a').attr('stroke-width', 1.2)
-      .attr('opacity', 0.9)
+      .attr('cx', pt[0]).attr('cy', pt[1]).attr('r', 2.5)
+      .attr('fill', col)
+      .attr('stroke', '#07060a').attr('stroke-width', 0.6)
+      .attr('opacity', 1)
       .style('cursor', 'pointer')
       .on('mousemove', (e) => showTip(`<strong>${d['Takeoff Base']}</strong><br>${d.Country}`, e))
       .on('mouseleave', hideTip);
