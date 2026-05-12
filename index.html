@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Skies of Steel — WWII Aerial Operations & Weather</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IBM+Plex+Mono:wght@300;400;600&family=Oswald:wght@300;400;600;700&display=swap');
 
@@ -964,31 +965,62 @@ function showTip(html, event) {
 function hideTip() { tooltip.style.opacity = 0; }
 
 // ═══════════════════════════════════════════════
-//  WORLD MAP (D3 Mercator)
+//  WORLD MAP (D3 Mercator + TopoJSON countries)
 // ═══════════════════════════════════════════════
-function drawMap() {
+async function drawMap() {
   const svg = d3.select('#world-map');
   const container = svg.node().parentElement;
   const W = container.clientWidth - 32;
-  const H = Math.round(W * 0.5);
+  const H = Math.round(W * 0.52);
   svg.attr('viewBox', `0 0 ${W} ${H}`).attr('width', W).attr('height', H);
 
-  const projection = d3.geoMercator()
-    .scale(W / 7)
-    .translate([W / 2.2, H / 1.55]);
+  // Focus on Europe/Africa/Asia/Pacific where WWII data sits
+  // Use a natural earth projection centred on ~30E
+  const projection = d3.geoNaturalEarth1()
+    .scale(W / 6.1)
+    .translate([W / 2, H / 1.85]);
 
   const path = d3.geoPath().projection(projection);
 
-  // Country fills (simple rectangles as world outline not loaded — use circles for bases)
-  svg.append('rect').attr('width', W).attr('height', H).attr('fill', '#0a0806');
+  // Ocean background
+  svg.append('rect').attr('width', W).attr('height', H).attr('fill', '#07060a');
 
-  // Grid lines (lat/lon)
+  // Fetch world topojson from CDN
+  let world;
+  try {
+    world = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+  } catch(e) {
+    // Fallback: draw graticule only
+    console.warn('Could not load world atlas:', e);
+  }
+
+  if (world) {
+    const countries = topojson.feature(world, world.objects.countries);
+    const borders   = topojson.mesh(world, world.objects.countries, (a, b) => a !== b);
+
+    svg.append('g')
+      .selectAll('path')
+      .data(countries.features)
+      .join('path')
+      .attr('d', path)
+      .attr('fill', '#1c1912')
+      .attr('stroke', 'none');
+
+    svg.append('path')
+      .datum(borders)
+      .attr('d', path)
+      .attr('fill', 'none')
+      .attr('stroke', '#2e2820')
+      .attr('stroke-width', 0.5);
+  }
+
+  // Graticule
   const graticule = d3.geoGraticule().step([30, 30]);
   svg.append('path')
     .datum(graticule())
     .attr('d', path)
     .attr('fill', 'none')
-    .attr('stroke', '#1a1510')
+    .attr('stroke', '#151210')
     .attr('stroke-width', 0.5);
 
   const countryColors = {
@@ -998,50 +1030,55 @@ function drawMap() {
     'NEW ZEALAND': '#9b59b6'
   };
 
-  // Flight paths
+  // Filter to valid, on-screen points
   const validPaths = PATHS_DATA.filter(d => {
-    const [tx, ty] = projection([d['Takeoff Longitude'], d['Takeoff Latitude']]) || [];
-    const [gx, gy] = projection([d['Target Longitude'], d['Target Latitude']]) || [];
-    return tx && ty && gx && gy &&
-      tx > 0 && tx < W && ty > 0 && ty < H &&
-      gx > 0 && gx < W && gy > 0 && gy < H &&
-      Math.abs(d['Takeoff Latitude']) < 80 && Math.abs(d['Target Latitude']) < 80 &&
-      Math.abs(d['Takeoff Longitude']) < 200 && Math.abs(d['Target Longitude']) < 200;
+    if (Math.abs(d['Takeoff Latitude']) > 85 || Math.abs(d['Target Latitude']) > 85) return false;
+    if (Math.abs(d['Takeoff Longitude']) > 200 || Math.abs(d['Target Longitude']) > 200) return false;
+    const t = projection([d['Takeoff Longitude'], d['Takeoff Latitude']]);
+    const g = projection([d['Target Longitude'], d['Target Latitude']]);
+    if (!t || !g) return false;
+    const inBounds = (p) => p[0] > -20 && p[0] < W + 20 && p[1] > -20 && p[1] < H + 20;
+    return inBounds(t) && inBounds(g);
   });
 
-  validPaths.forEach((d, i) => {
+  // Flight path lines
+  validPaths.forEach(d => {
     const [x1, y1] = projection([d['Takeoff Longitude'], d['Takeoff Latitude']]);
     const [x2, y2] = projection([d['Target Longitude'], d['Target Latitude']]);
     svg.append('line')
       .attr('x1', x1).attr('y1', y1)
       .attr('x2', x2).attr('y2', y2)
       .attr('stroke', '#c0392b')
-      .attr('stroke-width', 0.4)
-      .attr('opacity', 0.3);
+      .attr('stroke-width', 0.5)
+      .attr('opacity', 0.25);
   });
 
   // Target dots
   validPaths.forEach(d => {
-    const [x, y] = projection([d['Target Longitude'], d['Target Latitude']]);
+    const pt = projection([d['Target Longitude'], d['Target Latitude']]);
+    if (!pt) return;
     svg.append('circle')
-      .attr('cx', x).attr('cy', y).attr('r', 2)
-      .attr('fill', '#e74c3c').attr('opacity', 0.5)
+      .attr('cx', pt[0]).attr('cy', pt[1]).attr('r', 2.5)
+      .attr('fill', '#e74c3c').attr('opacity', 0.6)
+      .style('cursor', 'pointer')
       .on('mousemove', (e) => showTip(`<strong>${d['Target City']}</strong><br>${d['Target Country']}`, e))
       .on('mouseleave', hideTip);
   });
 
-  // Takeoff base dots
+  // Takeoff base dots (deduplicated)
   const seen = new Set();
   validPaths.forEach(d => {
-    const key = `${d['Takeoff Latitude']},${d['Takeoff Longitude']}`;
+    const key = `${d['Takeoff Latitude'].toFixed(2)},${d['Takeoff Longitude'].toFixed(2)}`;
     if (seen.has(key)) return;
     seen.add(key);
-    const [x, y] = projection([d['Takeoff Longitude'], d['Takeoff Latitude']]);
+    const pt = projection([d['Takeoff Longitude'], d['Takeoff Latitude']]);
+    if (!pt) return;
     const col = countryColors[d.Country] || '#aaa';
     svg.append('circle')
-      .attr('cx', x).attr('cy', y).attr('r', 4)
-      .attr('fill', col).attr('stroke', '#0a0806').attr('stroke-width', 1)
-      .attr('opacity', 0.85)
+      .attr('cx', pt[0]).attr('cy', pt[1]).attr('r', 5)
+      .attr('fill', col).attr('stroke', '#07060a').attr('stroke-width', 1.2)
+      .attr('opacity', 0.9)
+      .style('cursor', 'pointer')
       .on('mousemove', (e) => showTip(`<strong>${d['Takeoff Base']}</strong><br>${d.Country}`, e))
       .on('mouseleave', hideTip);
   });
@@ -1439,14 +1476,12 @@ function drawARIMA() {
 // ═══════════════════════════════════════════════
 //  INIT ON LOAD
 // ═══════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    drawMap();
-    drawBarChart();
-    drawWeatherChart();
-    drawTimeline();
-    drawARIMA();
-  }, 300);
+document.addEventListener('DOMContentLoaded', async () => {
+  await drawMap();
+  drawBarChart();
+  drawWeatherChart();
+  drawTimeline();
+  drawARIMA();
 });
 </script>
 </body>
